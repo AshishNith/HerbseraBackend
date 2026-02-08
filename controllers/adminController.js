@@ -425,8 +425,8 @@ exports.getAllReviews = async (req, res) => {
 
     const [reviews, total] = await Promise.all([
       Review.find()
-        .populate('userId', 'displayName email')
-        .populate('productId', 'name images')
+        .populate('user', 'displayName email')
+        .populate('product', 'name images')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit),
