@@ -488,3 +488,183 @@ exports.deleteReview = async (req, res) => {
     });
   }
 };
+
+/**
+ * Get analytics data
+ */
+exports.getAnalytics = async (req, res) => {
+  try {
+    const Product = require('../models/Product');
+    const Order = require('../models/Order');
+    const Review = require('../models/Review');
+
+    // Get date 30 days ago
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    // Sales over time (last 30 days)
+    const salesOverTime = await Order.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: thirtyDaysAgo },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: '%Y-%m-%d', date: '$createdAt' },
+          },
+          sales: { $sum: 1 },
+          revenue: { $sum: '$pricing.total' },
+        },
+      },
+      {
+        $sort: { _id: 1 },
+      },
+      {
+        $project: {
+          _id: 0,
+          date: '$_id',
+          sales: 1,
+          revenue: 1,
+        },
+      },
+    ]);
+
+    // Top selling products
+    const topProducts = await Order.aggregate([
+      { $unwind: '$items' },
+      {
+        $group: {
+          _id: '$items.product',
+          sales: { $sum: '$items.quantity' },
+          revenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } },
+        },
+      },
+      {
+        $lookup: {
+          from: 'products',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'productInfo',
+        },
+      },
+      { $unwind: '$productInfo' },
+      {
+        $project: {
+          _id: 0,
+          name: '$productInfo.name',
+          sales: 1,
+          revenue: 1,
+        },
+      },
+      { $sort: { sales: -1 } },
+      { $limit: 10 },
+    ]);
+
+    // Category distribution
+    const categoryDistribution = await Order.aggregate([
+      { $unwind: '$items' },
+      {
+        $lookup: {
+          from: 'products',
+          localField: 'items.product',
+          foreignField: '_id',
+          as: 'productInfo',
+        },
+      },
+      { $unwind: '$productInfo' },
+      {
+        $group: {
+          _id: '$productInfo.category',
+          count: { $sum: '$items.quantity' },
+          revenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          category: '$_id',
+          count: 1,
+          revenue: 1,
+        },
+      },
+    ]);
+
+    // Order status distribution
+    const orderStatusDistribution = await Order.aggregate([
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          status: '$_id',
+          count: 1,
+        },
+      },
+    ]);
+
+    // Revenue by month (last 6 months)
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+    const revenueByMonth = await Order.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: sixMonthsAgo },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: '%Y-%m', date: '$createdAt' },
+          },
+          revenue: { $sum: '$pricing.total' },
+        },
+      },
+      {
+        $sort: { _id: 1 },
+      },
+      {
+        $project: {
+          _id: 0,
+          month: '$_id',
+          revenue: 1,
+        },
+      },
+    ]);
+
+    // Product ratings
+    const productRatings = await Product.find({})
+      .select('name ratings')
+      .lean();
+
+    const formattedRatings = productRatings.map((product) => ({
+      name: product.name,
+      rating: product.ratings?.average || 0,
+      reviews: product.ratings?.count || 0,
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        salesOverTime,
+        topProducts,
+        categoryDistribution,
+        orderStatusDistribution,
+        revenueByMonth,
+        productRatings: formattedRatings,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching analytics:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching analytics',
+    });
+  }
+};

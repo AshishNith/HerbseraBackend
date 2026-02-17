@@ -29,4 +29,7 @@ router.patch('/orders/:orderId/status', adminController.updateOrderStatus);
 router.get('/reviews', adminController.getAllReviews);
 router.delete('/reviews/:reviewId', adminController.deleteReview);
 
+// Analytics
+router.get('/analytics', adminController.getAnalytics);
+
 module.exports = router;
