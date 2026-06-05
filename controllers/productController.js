@@ -158,7 +158,11 @@ exports.deleteProduct = async (req, res, next) => {
     if (product.images && product.images.length > 0) {
       for (const image of product.images) {
         if (image.publicId) {
-          await cloudinary.uploader.destroy(image.publicId);
+          try {
+            await cloudinary.uploader.destroy(image.publicId);
+          } catch (cloudinaryError) {
+            console.error(`Error deleting image ${image.publicId} from Cloudinary:`, cloudinaryError);
+          }
         }
       }
     }

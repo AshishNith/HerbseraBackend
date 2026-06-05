@@ -369,6 +369,14 @@ exports.updateOrderStatus = async (req, res) => {
       });
     }
 
+    // Send order status update email
+    if (order.user && order.user.email) {
+      const emailService = require('../services/emailService');
+      emailService.sendOrderStatusUpdate(order.user.email, order).catch(err => {
+        console.error('Failed to send order status update email (admin):', err);
+      });
+    }
+
     res.json({
       success: true,
       message: 'Order status updated successfully',
@@ -461,7 +469,7 @@ exports.deleteReview = async (req, res) => {
   try {
     const { reviewId } = req.params;
 
-    const review = await Review.findByIdAndDelete(reviewId);
+    const review = await Review.findById(reviewId);
 
     if (!review) {
       return res.status(404).json({
@@ -470,11 +478,7 @@ exports.deleteReview = async (req, res) => {
       });
     }
 
-    // Update product rating
-    const Product = require('../models/Product');
-    await Product.findByIdAndUpdate(review.productId, {
-      $pull: { reviews: reviewId },
-    });
+    await review.deleteOne();
 
     res.json({
       success: true,

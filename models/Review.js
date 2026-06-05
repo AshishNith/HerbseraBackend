@@ -51,13 +51,13 @@ const reviewSchema = new mongoose.Schema({
 // One review per user per product
 reviewSchema.index({ product: 1, user: 1 }, { unique: true });
 
-// Update product ratings when review is saved
-reviewSchema.post('save', async function() {
+// Reusable function to calculate and update product rating averages
+const updateProductRatings = async function(productId) {
   const Review = mongoose.model('Review');
   const Product = mongoose.model('Product');
   
   const stats = await Review.aggregate([
-    { $match: { product: this.product } },
+    { $match: { product: productId } },
     {
       $group: {
         _id: '$product',
@@ -68,11 +68,27 @@ reviewSchema.post('save', async function() {
   ]);
 
   if (stats.length > 0) {
-    await Product.findByIdAndUpdate(this.product, {
+    await Product.findByIdAndUpdate(productId, {
       'ratings.average': Math.round(stats[0].averageRating * 10) / 10,
       'ratings.count': stats[0].reviewCount,
     });
+  } else {
+    // If no reviews are left, reset ratings to 0
+    await Product.findByIdAndUpdate(productId, {
+      'ratings.average': 0,
+      'ratings.count': 0,
+    });
   }
+};
+
+// Update product ratings when review is saved
+reviewSchema.post('save', async function() {
+  await updateProductRatings(this.product);
+});
+
+// Update product ratings when review is deleted
+reviewSchema.post('deleteOne', { document: true, query: false }, async function() {
+  await updateProductRatings(this.product);
 });
 
 module.exports = mongoose.model('Review', reviewSchema);

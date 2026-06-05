@@ -1,6 +1,7 @@
 const Order = require('../models/Order');
 const Product = require('../models/Product');
 const Cart = require('../models/Cart');
+const emailService = require('../services/emailService');
 
 /**
  * Create new order
@@ -8,6 +9,69 @@ const Cart = require('../models/Cart');
 exports.createOrder = async (req, res, next) => {
   try {
     const { items, shippingAddress, paymentMethod, paymentInfo } = req.body;
+
+    // Verify online payments server-side
+    let savedPaymentInfo = {};
+    if (paymentMethod === 'razorpay') {
+      if (!paymentInfo || !paymentInfo.razorpay_payment_id || !paymentInfo.razorpay_order_id || !paymentInfo.razorpay_signature) {
+        return res.status(400).json({
+          success: false,
+          message: 'Razorpay payment verification details are missing.',
+        });
+      }
+
+      const crypto = require('crypto');
+      const generatedSignature = crypto
+        .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || 'dummy_key_secret')
+        .update(`${paymentInfo.razorpay_order_id}|${paymentInfo.razorpay_payment_id}`)
+        .digest('hex');
+
+      if (generatedSignature !== paymentInfo.razorpay_signature) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid Razorpay payment signature. Verification failed.',
+        });
+      }
+
+      savedPaymentInfo = {
+        id: paymentInfo.razorpay_payment_id,
+        status: 'paid',
+        paidAt: new Date(),
+      };
+    } else if (paymentMethod === 'stripe') {
+      if (!paymentInfo || !paymentInfo.id) {
+        return res.status(400).json({
+          success: false,
+          message: 'Stripe payment intent ID is missing.',
+        });
+      }
+
+      const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+      const paymentIntent = await stripe.paymentIntents.retrieve(paymentInfo.id);
+
+      if (paymentIntent.status !== 'succeeded') {
+        return res.status(400).json({
+          success: false,
+          message: `Stripe payment intent status is: ${paymentIntent.status}. Expected: succeeded.`,
+        });
+      }
+
+      savedPaymentInfo = {
+        id: paymentInfo.id,
+        status: 'paid',
+        paidAt: new Date(),
+      };
+    } else if (paymentMethod === 'cod') {
+      savedPaymentInfo = {
+        id: `cod_${Date.now()}`,
+        status: 'pending',
+      };
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid payment method.',
+      });
+    }
 
     // Validate products and calculate prices
     let subtotal = 0;
@@ -64,7 +128,7 @@ exports.createOrder = async (req, res, next) => {
       items: orderItems,
       shippingAddress,
       paymentMethod,
-      paymentInfo,
+      paymentInfo: savedPaymentInfo,
       pricing: {
         subtotal,
         tax,
@@ -76,6 +140,13 @@ exports.createOrder = async (req, res, next) => {
 
     // Clear user's cart after order
     await Cart.findOneAndDelete({ user: req.user._id });
+
+    // Send order confirmation email
+    if (req.user && req.user.email) {
+      emailService.sendOrderConfirmation(req.user.email, order).catch(err => {
+        console.error('Failed to send order confirmation email:', err);
+      });
+    }
 
     res.status(201).json({
       success: true,
@@ -194,6 +265,14 @@ exports.cancelOrder = async (req, res, next) => {
     order.cancelledAt = new Date();
     await order.save();
 
+    // Send cancellation email
+    await order.populate('user', 'email');
+    if (order.user && order.user.email) {
+      emailService.sendOrderStatusUpdate(order.user.email, order).catch(err => {
+        console.error('Failed to send order status cancellation email:', err);
+      });
+    }
+
     res.json({
       success: true,
       message: 'Order cancelled successfully',
@@ -258,6 +337,14 @@ exports.updateOrderStatus = async (req, res, next) => {
     if (status === 'delivered') order.deliveredAt = new Date();
 
     await order.save();
+
+    // Send status update email
+    await order.populate('user', 'email');
+    if (order.user && order.user.email) {
+      emailService.sendOrderStatusUpdate(order.user.email, order).catch(err => {
+        console.error('Failed to send order status update email:', err);
+      });
+    }
 
     res.json({
       success: true,

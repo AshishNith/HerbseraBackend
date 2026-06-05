@@ -18,6 +18,7 @@ const orderRoutes = require('./routes/orderRoutes');
 const cartRoutes = require('./routes/cartRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const paymentRoutes = require('./routes/paymentRoutes');
 
 // Initialize Express app
 const app = express();
@@ -29,7 +30,7 @@ connectDB();
 initializeFirebase();
 
 // Configure Cloudinary (optional, comment out if not using)
-// configureCloudinary();
+configureCloudinary();
 
 // Middleware
 app.use(helmet()); // Security headers
@@ -37,8 +38,32 @@ app.use(compression()); // Compress responses
 app.use(morgan('dev')); // Logging
 
 // CORS configuration
+const allowedOrigins = [
+  'http://localhost:8080',
+  'http://192.168.1.10:8080',
+];
+if (process.env.FRONTEND_URL) {
+  const formattedUrl = process.env.FRONTEND_URL.replace(/\/$/, '');
+  if (!allowedOrigins.includes(formattedUrl)) {
+    allowedOrigins.push(formattedUrl);
+  }
+}
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:8080',
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+    
+    const strippedOrigin = origin.replace(/\/$/, '');
+    if (allowedOrigins.includes(strippedOrigin)) {
+      return callback(null, true);
+    }
+    
+    if (/^http:\/\/localhost:\d+$/.test(origin) || /^http:\/\/192\.168\.\d+\.\d+:\d+$/.test(origin)) {
+      return callback(null, true);
+    }
+    
+    return callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
 }));
 
@@ -71,6 +96,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // Root route
 app.get('/', (req, res) => {
