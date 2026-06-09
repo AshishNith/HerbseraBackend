@@ -40,8 +40,7 @@ app.use(morgan('dev')); // Logging
 // CORS configuration
 const allowedOrigins = [
   'http://localhost:8080',
-  'http://192.168.1.10:8080',
-  'https://herbsera.in'
+  'http://192.168.1.10:8080'
 ];
 if (process.env.FRONTEND_URL) {
   const formattedUrl = process.env.FRONTEND_URL.replace(/\/$/, '');
