@@ -19,6 +19,7 @@ const cartRoutes = require('./routes/cartRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
+const filterRoutes = require('./routes/filterRoutes');
 
 // Initialize Express app
 const app = express();
@@ -98,6 +99,7 @@ app.use('/api/cart', cartRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/filters', filterRoutes);
 
 // Root route
 app.get('/', (req, res) => {
