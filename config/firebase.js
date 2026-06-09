@@ -8,6 +8,8 @@ const initializeFirebase = () => {
     const key = process.env.FIREBASE_PRIVATE_KEY;
     console.log('--- FIREBASE PRIVATE KEY DIAGNOSTICS ---');
     console.log('Key exists:', !!key);
+    console.log('Project ID:', process.env.FIREBASE_PROJECT_ID);
+    console.log('Client Email:', process.env.FIREBASE_CLIENT_EMAIL);
     if (key) {
       console.log('Key length:', key.length);
       console.log('First 15 chars:', JSON.stringify(key.slice(0, 15)));
@@ -19,6 +21,16 @@ const initializeFirebase = () => {
       const parsed = rawDecoded.replace(/\\n/g, '\n');
       console.log('Parsed length:', parsed.length);
       console.log('Parsed first 30 chars:', JSON.stringify(parsed.slice(0, 30)));
+      
+      const crypto = require('crypto');
+      const hash = crypto.createHash('sha256').update(parsed).digest('hex');
+      console.log('Parsed Key SHA256 Hash:', hash);
+      
+      const lines = parsed.split('\n');
+      console.log('Parsed line count:', lines.length);
+      lines.forEach((line, idx) => {
+        console.log(`Line ${idx + 1}: length=${line.length}, startsWith=${JSON.stringify(line.slice(0, 5))}, endsWith=${JSON.stringify(line.slice(-5))}`);
+      });
     }
     console.log('----------------------------------------');
 
