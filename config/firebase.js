@@ -9,7 +9,14 @@ const initializeFirebase = () => {
     admin.initializeApp({
       credential: admin.credential.cert({
         projectId: process.env.FIREBASE_PROJECT_ID,
-        privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+        privateKey: (() => {
+          const key = process.env.FIREBASE_PRIVATE_KEY;
+          if (!key) return undefined;
+          if (!key.includes('-----BEGIN PRIVATE KEY-----')) {
+            return Buffer.from(key, 'base64').toString('utf8');
+          }
+          return key.replace(/\\n/g, '\n');
+        })(),
         clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
       }),
     });
