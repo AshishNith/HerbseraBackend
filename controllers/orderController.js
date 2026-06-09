@@ -110,9 +110,9 @@ exports.createOrder = async (req, res, next) => {
     }
 
     // Calculate pricing
-    const tax = subtotal * 0.18; // 18% GST
-    const shippingCost = subtotal >= 500 ? 0 : 50;
-    const total = subtotal + tax + shippingCost;
+    const tax = 0;
+    const shippingCost = 0;
+    const total = subtotal;
 
     // Generate unique order number
     const generateOrderNumber = () => {
