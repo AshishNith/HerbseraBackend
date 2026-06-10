@@ -154,6 +154,7 @@ wss.on('connection', (clientWs, req) => {
     while (clientMessageQueue.length > 0) {
       const msg = clientMessageQueue.shift();
       if (geminiWs.readyState === WebSocket.OPEN) {
+        console.log(`[Proxy] Flushing queued client message. Size: ${msg.data.length || msg.data.byteLength}, isBinary: ${msg.isBinary}`);
         geminiWs.send(msg.data, { binary: msg.isBinary });
       }
     }
@@ -161,10 +162,18 @@ wss.on('connection', (clientWs, req) => {
 
   // Pipe client messages to Gemini
   clientWs.on('message', (message, isBinary) => {
+    const payloadStr = Buffer.isBuffer(message) ? message.toString('utf8') : message;
+    console.log(`[Proxy] Client -> Gemini. isBinary: ${isBinary}, typeof message: ${typeof message}, length: ${message.length || message.byteLength}`);
+    if (payloadStr && payloadStr.length < 300) {
+      console.log(`[Proxy] Client message payload: ${payloadStr}`);
+    }
+
+    const forceText = isBinary === false || isBinary === undefined;
+
     if (geminiWs.readyState === WebSocket.OPEN) {
-      geminiWs.send(message, { binary: isBinary });
+      geminiWs.send(message, { binary: !forceText });
     } else if (geminiWs.readyState === WebSocket.CONNECTING) {
-      clientMessageQueue.push({ data: message, isBinary });
+      clientMessageQueue.push({ data: message, isBinary: !forceText });
     } else {
       console.warn('⚠️ Discarded client message: Gemini WS is not OPEN/CONNECTING');
     }
@@ -173,7 +182,7 @@ wss.on('connection', (clientWs, req) => {
   // Pipe Gemini messages to client
   geminiWs.on('message', (message, isBinary) => {
     if (clientWs.readyState === WebSocket.OPEN) {
-      clientWs.send(message, { binary: isBinary });
+      clientWs.send(message, { binary: isBinary === true });
     }
   });
 
