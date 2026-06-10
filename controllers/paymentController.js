@@ -30,9 +30,9 @@ const calculateCartTotal = async (userId) => {
     subtotal += item.product.price * item.quantity;
   }
 
-  const tax = subtotal * 0.18; // 18% GST
-  const shippingCost = subtotal >= 500 ? 0 : 50;
-  const total = subtotal + tax + shippingCost;
+  const tax = 0;
+  const shippingCost = 0;
+  const total = subtotal;
 
   return {
     subtotal,
