@@ -33,7 +33,52 @@ const emails = [
   'varun.kapoor88@gmail.com',
   'ishita.desai.skin@gmail.com',
   'manish.tiwari99@gmail.com',
-  'simran.kaur.organic@gmail.com'
+  'simran.kaur.organic@gmail.com',
+  // New emails to support higher review count (total ~70)
+  'aditya.singh.99@gmail.com',
+  'kunal.sharma.dev@gmail.com',
+  'pooja.patel.wellness@gmail.com',
+  'neha.reddy.nature@gmail.com',
+  'sanjay.gupta.health@gmail.com',
+  'priyanka.nair.organic@gmail.com',
+  'rahul.verma.skin@gmail.com',
+  'ananya.sen.ayur@gmail.com',
+  'rajesh.iyer.yoga@gmail.com',
+  'deepak.mishra2024@gmail.com',
+  'shalini.dubey.ayurveda@gmail.com',
+  'rohit.kapoor.wellness@gmail.com',
+  'swati.choudhary@gmail.com',
+  'abhishek.pandey.tech@gmail.com',
+  'meenakshi.nair@gmail.com',
+  'harish.kumar.herbs@gmail.com',
+  'rashmi.ranjan@gmail.com',
+  'anil.deshmukh@gmail.com',
+  'kiran.joshi.natural@gmail.com',
+  'pallavi.sinha@gmail.com',
+  'tushar.mehta@gmail.com',
+  'sunita.rao.wellness@gmail.com',
+  'vivek.sharma.dev@gmail.com',
+  'nisha.gupta.beauty@gmail.com',
+  'raj.malhotra.fitness@gmail.com',
+  'aishwarya.sen@gmail.com',
+  'manoj.trivedi@gmail.com',
+  'preeti.saxena@gmail.com',
+  'suresh.pillai@gmail.com',
+  'jyoti.sharma.organic@gmail.com',
+  'tarun.verma@gmail.com',
+  'ekta.kapoor.wellness@gmail.com',
+  'nitin.sharma@gmail.com',
+  'vinay.kumar@gmail.com',
+  'archana.devi@gmail.com',
+  'devendra.singh@gmail.com',
+  'seema.sharma@gmail.com',
+  'pradeep.kumar@gmail.com',
+  'renu.bala@gmail.com',
+  'neeraj.chopra.sports@gmail.com',
+  'sakshi.malik.health@gmail.com',
+  'kartik.aryan.wellness@gmail.com',
+  'janhvi.kapoor.glow@gmail.com',
+  'hrithik.roshan.fit@gmail.com'
 ];
 
 const reviewTemplates = {
@@ -256,25 +301,20 @@ async function seedReviews() {
 
     // Create reviews for each product
     for (const product of products) {
-      const numReviews = Math.floor(Math.random() * 6) + 15; // 15-20 reviews
+      const numReviews = Math.floor(Math.random() * 16) + 20; // 20-35 reviews
       console.log(`\n📝 Creating ${numReviews} reviews for: ${product.name}`);
 
       const productReviews = [];
 
-      for (let i = 0; i < numReviews; i++) {
-        const user = getRandomElement(users);
+      const shuffledUsers = [...users].sort(() => Math.random() - 0.5);
+      const selectedUsers = shuffledUsers.slice(0, numReviews);
+
+      for (const user of selectedUsers) {
         const rating = getRandomRating();
         const template = reviewTemplates[rating];
         const title = getRandomElement(template.titles);
         const comment = getRandomElement(template.comments);
         const createdAt = getRandomDate(60, 1); // Reviews from last 60 days to 1 day ago
-
-        // Check if this user already reviewed this product
-        const existingReview = productReviews.find(r => r.user.toString() === user._id.toString());
-        if (existingReview) {
-          // Skip if user already reviewed this product
-          continue;
-        }
 
         const review = {
           product: product._id,

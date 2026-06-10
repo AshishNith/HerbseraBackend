@@ -1,4 +1,5 @@
 require('dotenv').config();
+const http = require('http');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -121,10 +122,85 @@ app.get('/', (req, res) => {
 app.use(notFound);
 app.use(errorHandler);
 
+// Create HTTP server
+const server = http.createServer(app);
+
+// Setup WebSocket server proxy for Voice Concierge
+const WebSocket = require('ws');
+const url = require('url');
+
+const wss = new WebSocket.Server({ noServer: true });
+
+wss.on('connection', (clientWs, req) => {
+  console.log('🔌 Client connected to Voice Concierge WebSocket proxy');
+
+  const geminiApiKey = process.env.GEMINI_API_KEY;
+  if (!geminiApiKey) {
+    console.error('❌ GEMINI_API_KEY is not defined in backend environment!');
+    clientWs.close(1011, 'GEMINI_API_KEY is not defined on server');
+    return;
+  }
+
+  // Connect to Gemini Live API
+  const geminiUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${geminiApiKey}`;
+  const geminiWs = new WebSocket(geminiUrl);
+
+  // Pipe client messages to Gemini
+  clientWs.on('message', (message) => {
+    if (geminiWs.readyState === WebSocket.OPEN) {
+      geminiWs.send(message);
+    }
+  });
+
+  // Pipe Gemini messages to client
+  geminiWs.on('message', (message) => {
+    if (clientWs.readyState === WebSocket.OPEN) {
+      clientWs.send(message);
+    }
+  });
+
+  // Handle client close
+  clientWs.on('close', (code, reason) => {
+    console.log(`🔌 Client disconnected from proxy. Code: ${code}`);
+    if (geminiWs.readyState === WebSocket.OPEN || geminiWs.readyState === WebSocket.CONNECTING) {
+      geminiWs.close();
+    }
+  });
+
+  // Handle Gemini close
+  geminiWs.on('close', (code, reason) => {
+    console.log(`🔌 Gemini disconnected. Code: ${code}`);
+    if (clientWs.readyState === WebSocket.OPEN || clientWs.readyState === WebSocket.CONNECTING) {
+      clientWs.close();
+    }
+  });
+
+  // Error handling
+  clientWs.on('error', (err) => {
+    console.error('❌ Client socket error:', err);
+  });
+  geminiWs.on('error', (err) => {
+    console.error('❌ Gemini socket error:', err);
+  });
+});
+
+// Handle WebSocket upgrade request
+server.on('upgrade', (request, socket, head) => {
+  const pathname = url.parse(request.url).pathname;
+
+  if (pathname === '/voice-concierge') {
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      wss.emit('connection', ws, request);
+    });
+  } else {
+    socket.destroy();
+  }
+});
+
 // Start server
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`\n🚀 Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
   console.log(`📍 API URL: http://localhost:${PORT}`);
   console.log(`🏥 Health check: http://localhost:${PORT}/health\n`);
