@@ -145,10 +145,28 @@ wss.on('connection', (clientWs, req) => {
   const geminiUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${geminiApiKey}`;
   const geminiWs = new WebSocket(geminiUrl);
 
+  // Buffer messages from the client until Gemini WebSocket connection is OPEN
+  const clientMessageQueue = [];
+
+  geminiWs.on('open', () => {
+    console.log('🔌 Connected to Gemini Live API');
+    // Flush the queue
+    while (clientMessageQueue.length > 0) {
+      const msg = clientMessageQueue.shift();
+      if (geminiWs.readyState === WebSocket.OPEN) {
+        geminiWs.send(msg);
+      }
+    }
+  });
+
   // Pipe client messages to Gemini
   clientWs.on('message', (message) => {
     if (geminiWs.readyState === WebSocket.OPEN) {
       geminiWs.send(message);
+    } else if (geminiWs.readyState === WebSocket.CONNECTING) {
+      clientMessageQueue.push(message);
+    } else {
+      console.warn('⚠️ Discarded client message: Gemini WS is not OPEN/CONNECTING');
     }
   });
 
