@@ -23,7 +23,26 @@ exports.getProducts = async (req, res, next) => {
     if (category) query.category = category;
     if (featured) query.featured = featured === 'true';
     if (search) {
-      query.$text = { $search: search };
+      const searchRegex = new RegExp(search, 'i');
+      const orConditions = [
+        { name: searchRegex },
+        { description: searchRegex },
+        { benefit: searchRegex },
+        { tags: searchRegex }
+      ];
+
+      // Handle common synonyms (e.g. detan/de-tan -> tan)
+      if (/de[- ]?tan/i.test(search) || /detan/i.test(search)) {
+        const tanRegex = new RegExp('tan', 'i');
+        orConditions.push(
+          { name: tanRegex },
+          { description: tanRegex },
+          { benefit: tanRegex },
+          { tags: tanRegex }
+        );
+      }
+
+      query.$or = orConditions;
     }
     if (minPrice || maxPrice) {
       query.price = {};
