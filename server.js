@@ -154,26 +154,26 @@ wss.on('connection', (clientWs, req) => {
     while (clientMessageQueue.length > 0) {
       const msg = clientMessageQueue.shift();
       if (geminiWs.readyState === WebSocket.OPEN) {
-        geminiWs.send(msg);
+        geminiWs.send(msg.data, { binary: msg.isBinary });
       }
     }
   });
 
   // Pipe client messages to Gemini
-  clientWs.on('message', (message) => {
+  clientWs.on('message', (message, isBinary) => {
     if (geminiWs.readyState === WebSocket.OPEN) {
-      geminiWs.send(message);
+      geminiWs.send(message, { binary: isBinary });
     } else if (geminiWs.readyState === WebSocket.CONNECTING) {
-      clientMessageQueue.push(message);
+      clientMessageQueue.push({ data: message, isBinary });
     } else {
       console.warn('⚠️ Discarded client message: Gemini WS is not OPEN/CONNECTING');
     }
   });
 
   // Pipe Gemini messages to client
-  geminiWs.on('message', (message) => {
+  geminiWs.on('message', (message, isBinary) => {
     if (clientWs.readyState === WebSocket.OPEN) {
-      clientWs.send(message);
+      clientWs.send(message, { binary: isBinary });
     }
   });
 
