@@ -84,6 +84,26 @@ const productSchema = new mongoose.Schema({
   tags: [String],
   seoTitle: String,
   seoDescription: String,
+  shelfLife: {
+    type: String,
+    default: "24 months",
+  },
+  countryOfOrigin: {
+    type: String,
+    default: "India",
+  },
+  mfgLicenseNo: {
+    type: String,
+    default: "M-MH/104829",
+  },
+  manufacturerDetails: {
+    type: String,
+    default: "HerbsEra Wellness Pvt Ltd, Plot 14, Phase II, Hinjawadi Biotech Park, Pune, Maharashtra, 411057.",
+  },
+  safetyWarning: {
+    type: String,
+    default: "For external use only. Rub between wet palms to generate rich lather. Avoid direct contact with eyes. Patch test on inner elbow recommended before first use.",
+  },
 }, {
   timestamps: true,
 });
